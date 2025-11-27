@@ -599,10 +599,19 @@ Searchable conversation history.
 
 ---
 
-## Phase 8: DGM Self-Improvement Loop
+## Phase 8: DGM Self-Improvement Loop ✅ BACKEND COMPLETE | ⏳ FRONTEND PENDING
 
 ### Goal
 Agents evolve based on performance.
+
+### Backend Status: ✅ COMPLETE
+- ✅ services/mutation.py created (LLM-driven mutation with vector search)
+- ✅ routers/evolve.py created (evolution API endpoints)
+- ✅ main.py updated (evolve router registered)
+- ✅ Evolution cycle working (5 baseline + 3 mutations × 3 tests = 14 sims)
+
+### Frontend Status: ⏳ PENDING
+- ⏳ Evolution.jsx page (needs to be built)
 
 ### Tasks
 
@@ -670,6 +679,151 @@ Agents evolve based on performance.
 
 ### Output
 Self-improving agents via evolution loop.
+
+---
+
+## Phase 8 Frontend: Evolution UI (MVP)
+
+### Goal
+Build UI for evolution system - trigger evolution, view version history, compare versions.
+
+### Design Approach
+**MVP-focused:** Simple, functional, matches existing UI patterns. No tree graphs or live progress (add later).
+
+### Layout (matches Simulations.jsx pattern)
+
+```
+┌────────────────────────────────────────────┐
+│  Evolution Lab - Header                     │
+├────────────────┬───────────────────────────┤
+│                │                            │
+│  LEFT SIDEBAR  │     MAIN CONTENT           │
+│                │                            │
+│  [Persona      │  - Evolution results       │
+│   Selector]    │  - Version history         │
+│                │  - Prompt comparison       │
+│  [Scenario     │                            │
+│   Selector]    │                            │
+│                │                            │
+│  [Evolve Now]  │                            │
+│   Button       │                            │
+│                │                            │
+└────────────────┴───────────────────────────┘
+```
+
+### MVP Features
+
+**1. Version History Display**
+- Linear list (no tree yet)
+- Show: version #, fitness score, active badge, date
+- Format:
+  ```
+  Version 3  [ACTIVE]  ⭐ 7.2/10  [Activate] [View]
+    ↑ improved from v2 (+1.8)
+
+  Version 2            ⭐ 5.4/10  [Activate] [View]
+    ↑ improved from v1 (+0.6)
+
+  Version 1 (Original) ⭐ 4.8/10  [View]
+  ```
+- Green badge for active version
+- One-click [Activate] to switch versions
+
+**2. Evolution Progress**
+- Simple spinner + "Evolution running... (~8 minutes)"
+- No live updates (no polling/websockets)
+- Disable UI during evolution
+- Show full results when done
+
+**3. Evolution Results**
+- Large centered display (like evaluation scores)
+```
+┌───────────────────────────────────┐
+│  EVOLUTION COMPLETE! ✅            │
+│                                    │
+│  Baseline: 4.2/10 → New: 6.5/10  │
+│      [+2.3 improvement] 🎯        │
+│                                    │
+│  New version saved: v2             │
+└───────────────────────────────────┘
+
+MUTATION RESULTS:
+Mutation 1: 5.8/10
+Mutation 2: 6.5/10  ⭐ WINNER
+Mutation 3: 5.2/10
+```
+- Blue/green colors for improvements
+- Card list for mutations
+
+**4. Prompt Comparison**
+- Toggle view (not side-by-side)
+- Tabs: [Version 1] [Version 2]
+- Single text area showing selected prompt
+- Show fitness score + improvement
+
+### Files to Create/Edit
+
+1. **CREATE:** `frontend/src/pages/Evolution.jsx`
+   - Sidebar: persona/scenario dropdowns, evolve button
+   - Main: version list, results, comparison
+
+2. **EDIT:** `frontend/src/App.jsx`
+   - Add route: `<Route path="/evolution" element={<Evolution />} />`
+
+3. **EDIT:** `frontend/src/pages/Home.jsx`
+   - Add Evolution card linking to /evolution
+
+### API Endpoints (Already Working)
+
+```javascript
+POST /api/evolve/{persona_id}?scenario_id={scenario_id}
+// Returns: { evolved, new_version, baseline_score, new_score, improvement, ... }
+
+GET /api/evolve/versions/{persona_id}
+// Returns: { persona_id, versions: [{ id, version, fitness_score, created_at, ... }] }
+
+POST /api/evolve/versions/{version_id}/activate
+// Returns: { persona_id, activated_version, fitness_score }
+```
+
+### Implementation Steps
+
+1. Create Evolution.jsx with layout
+2. Add persona/scenario selectors (fetch from existing APIs)
+3. Implement "Evolve Now" button (calls POST /api/evolve)
+4. Show loading during evolution
+5. Display results when complete
+6. Version history list (GET /api/evolve/versions)
+7. Version activation button (POST activate)
+8. Prompt comparison (toggle view)
+9. Add route to App.jsx
+10. Add link from Home.jsx
+
+### Tailwind Styling (Reuse Patterns)
+
+```css
+max-w-7xl mx-auto px-4 py-8          /* Container */
+text-3xl font-bold mb-8              /* Header */
+border rounded-lg p-4 bg-gray-50     /* Sidebar */
+bg-blue-500 text-white px-4 py-2     /* Primary button */
+border rounded-lg p-4 hover:shadow   /* Version card */
+text-2xl font-bold text-blue-600     /* Score display */
+bg-green-100 text-green-800 px-2     /* Active badge */
+```
+
+### For Later (Post-MVP)
+
+- Tree visualization (DGM-style graph with branches)
+- Live progress updates (polling/websockets)
+- Side-by-side diff view with highlighting
+- Multi-scenario evolution testing
+- Automated background evolution
+- Fitness score chart/timeline
+
+**Current approach:** Start with simplest MVP, iterate based on actual needs.
+
+**Earlier we considered:** Complex tree graphs, live progress bars, side-by-side diffs.
+**Now doing:** Linear list, simple spinner, toggle view - easier to build, good enough for MVP.
 
 ---
 
@@ -764,16 +918,20 @@ npm run dev
 
 ---
 
-## Implementation Order
+## Implementation Order & Status
 
-1. Phase 1: Get two agents talking
-2. Phase 2: Add database, personas, scenarios
-3. Phase 3: Build frontend
-4. Phase 4: Add voice
-5. Phase 5: Store simulation logs
-6. Phase 6: Add evaluation
-7. Phase 7: Add vector search
-8. Phase 8: DGM evolution loop
+1. ✅ Phase 1: Get two agents talking - COMPLETE
+2. ✅ Phase 2: Add database, personas, scenarios - COMPLETE
+3. ✅ Phase 3: Build frontend - COMPLETE
+4. ✅ Phase 4: Add voice - COMPLETE
+5. ✅ Phase 5: Store simulation logs - COMPLETE
+6. ✅ Phase 6: Add evaluation - COMPLETE
+7. ✅ Phase 7: Add vector search - COMPLETE
+8. ⏳ Phase 8: DGM evolution loop - BACKEND COMPLETE | FRONTEND PENDING
+   - ✅ Backend API endpoints (mutation.py, evolve.py)
+   - ⏳ Frontend Evolution.jsx page (planned but not built yet)
+
+**Current Status:** MVP backend fully working. Evolution frontend is next step.
 
 Start with Phase 1. Keep each phase working before moving to next.
 ```

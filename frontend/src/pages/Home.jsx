@@ -32,6 +32,14 @@ export default function Home() {
           <h2 className="text-2xl font-semibold mb-2">Simulations</h2>
           <p className="text-gray-600">View conversation history</p>
         </Link>
+
+        <Link
+          to="/evolution"
+          className="p-6 border rounded-lg hover:shadow-lg transition"
+        >
+          <h2 className="text-2xl font-semibold mb-2">Evolution</h2>
+          <p className="text-gray-600">Self-improving AI agents</p>
+        </Link>
       </div>
     </div>
   );

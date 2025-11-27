@@ -3,6 +3,7 @@ import Home from './pages/Home';
 import Personas from './pages/Personas';
 import Scenarios from './pages/Scenarios';
 import Simulations from './pages/Simulations';
+import Evolution from './pages/Evolution';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
                 <Link to="/personas" className="hover:text-blue-500">Personas</Link>
                 <Link to="/scenarios" className="hover:text-blue-500">Scenarios</Link>
                 <Link to="/simulations" className="hover:text-blue-500">Simulations</Link>
+                <Link to="/evolution" className="hover:text-blue-500">Evolution</Link>
               </div>
             </div>
           </div>
@@ -28,6 +30,7 @@ function App() {
             <Route path="/personas" element={<Personas />} />
             <Route path="/scenarios" element={<Scenarios />} />
             <Route path="/simulations" element={<Simulations />} />
+            <Route path="/evolution" element={<Evolution />} />
           </Routes>
         </main>
       </div>

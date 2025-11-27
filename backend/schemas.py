@@ -75,6 +75,7 @@ class SimulationRunBase(BaseModel):
 class SimulationRun(SimulationRunBase):
     id: int
     created_at: datetime
+    evaluation: Optional["Evaluation"] = None
 
     class Config:
         from_attributes = True

@@ -7,6 +7,8 @@ import schemas
 from database import get_db
 from services.llm import get_llm_response
 from services.tts import text_to_speech
+from services.evaluation import evaluate_conversation
+from services.vector_store import add_conversation
 
 router = APIRouter(prefix="/api/simulations", tags=["simulations"])
 
@@ -116,6 +118,40 @@ Act like a real conversation, not a script."""
         simulation_run.duration_seconds = duration
         db.commit()
         db.refresh(simulation_run)
+
+        # Auto-evaluate simulation
+        print(f"\n=== Evaluating Simulation ===")
+        scores = evaluate_conversation(transcript, scenario.goal or "Complete conversation")
+
+        # Calculate overall score (average)
+        overall = (scores["task_completion"] + scores["naturalness"] + scores["goal_achieved"]) / 3
+
+        # Create evaluation record
+        evaluation = models.Evaluation(
+            run_id=simulation_run.id,
+            scores=scores,
+            overall_score=overall,
+            feedback=scores.get("feedback", "")
+        )
+        db.add(evaluation)
+        db.commit()
+        print(f"Evaluation complete - Overall: {overall:.1f}/10")
+
+        # Add to vector store for future search
+        print(f"Adding conversation to vector store...")
+        add_conversation(
+            run_id=simulation_run.id,
+            transcript=transcript,
+            metadata={
+                "persona_a": persona_a.name,
+                "persona_b": persona_b.name,
+                "scenario": scenario.name,
+                "overall_score": overall,
+                "task_completion": scores["task_completion"],
+                "naturalness": scores["naturalness"],
+                "goal_achieved": scores["goal_achieved"]
+            }
+        )
 
         return simulation_run
 

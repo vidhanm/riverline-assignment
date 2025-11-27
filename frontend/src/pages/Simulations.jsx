@@ -168,6 +168,44 @@ export default function Simulations() {
                 </span>
               </div>
 
+              {/* Evaluation Scores */}
+              {selectedRun.evaluation && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <h3 className="font-semibold text-lg mb-3">Evaluation</h3>
+                  <div className="grid grid-cols-3 gap-4 mb-3">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {selectedRun.evaluation.scores.task_completion}/10
+                      </div>
+                      <div className="text-sm text-gray-600">Task Completion</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {selectedRun.evaluation.scores.naturalness}/10
+                      </div>
+                      <div className="text-sm text-gray-600">Naturalness</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {selectedRun.evaluation.scores.goal_achieved}/10
+                      </div>
+                      <div className="text-sm text-gray-600">Goal Achieved</div>
+                    </div>
+                  </div>
+                  <div className="text-center py-2 bg-white rounded border border-gray-200">
+                    <div className="text-3xl font-bold text-gray-800">
+                      {selectedRun.evaluation.overall_score.toFixed(1)}/10
+                    </div>
+                    <div className="text-sm text-gray-600">Overall Score</div>
+                  </div>
+                  {selectedRun.evaluation.feedback && (
+                    <div className="mt-3 p-3 bg-white rounded border border-gray-200">
+                      <strong>Feedback:</strong> {selectedRun.evaluation.feedback}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {selectedRun.transcript && (
                 <div className="space-y-4">
                   {selectedRun.transcript.map((turn, idx) => (
