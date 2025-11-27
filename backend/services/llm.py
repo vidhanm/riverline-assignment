@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ===== CONFIGURATION: Change this to switch LLM provider =====
-PROVIDER = "cerebras"  # Options: "groq" or "cerebras"
+PROVIDER = "groq"  # Options: "groq" or "cerebras"
 # ==============================================================
 
 

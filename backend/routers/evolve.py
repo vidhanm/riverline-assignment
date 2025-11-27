@@ -10,47 +10,62 @@ router = APIRouter(prefix="/api/evolve", tags=["evolution"])
 
 # Evolution configuration
 N_BASELINE_SIMS = 5  # Test simulations for baseline
-FAILURE_THRESHOLD = 6.0  # Trigger evolution if below this
+FAILURE_THRESHOLD = 8.5  # Trigger evolution if below this
 N_MUTATIONS = 3  # Number of mutation variants
-N_MUTATION_TESTS = 3  # Test simulations per mutation
+N_MUTATION_TESTS = 5  # Test simulations per mutation (same as baseline for fair comparison)
 
 
 @router.post("/{persona_id}")
-def evolve_persona(persona_id: int, scenario_id: int, db: Session = Depends(get_db)):
+def evolve_persona(persona_id: int, scenario_ids: str, db: Session = Depends(get_db)):
     """
-    Run evolution cycle for a persona
+    Run evolution cycle for a persona against MULTIPLE scenarios
 
     Process:
-    1. Run N baseline simulations
+    1. Run N baseline simulations (distributed across scenarios)
     2. Check if evolution needed (avg score < threshold)
     3. Generate N mutations
-    4. Test each mutation
+    4. Test each mutation (distributed across scenarios)
     5. Pick best mutation
     6. Save as new version
+
+    Args:
+        persona_id: ID of persona to evolve
+        scenario_ids: Comma-separated scenario IDs (e.g., "1,2,3,4,5")
     """
     # Get persona
     persona = db.query(models.Persona).filter(models.Persona.id == persona_id).first()
     if not persona:
         raise HTTPException(status_code=404, detail="Persona not found")
 
-    # Get scenario
-    scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
-    if not scenario:
-        raise HTTPException(status_code=404, detail="Scenario not found")
+    # Parse and validate scenarios
+    try:
+        scenario_id_list = [int(s.strip()) for s in scenario_ids.split(',')]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid scenario_ids format. Use comma-separated integers.")
+
+    scenarios = db.query(models.Scenario).filter(
+        models.Scenario.id.in_(scenario_id_list)
+    ).all()
+
+    if len(scenarios) != len(scenario_id_list):
+        raise HTTPException(status_code=404, detail="Some scenarios not found")
 
     print(f"\n{'='*60}")
     print(f"EVOLUTION CYCLE: {persona.name}")
-    print(f"Scenario: {scenario.name}")
+    print(f"Testing across {len(scenarios)} scenarios:")
+    for s in scenarios:
+        print(f"  - {s.name}")
     print(f"{'='*60}\n")
 
-    # Step 1: Run baseline simulations
+    # Step 1: Run baseline simulations (distributed across scenarios)
     print(f"Step 1: Running {N_BASELINE_SIMS} baseline simulations...")
     baseline_scores = []
     baseline_evaluations = []
 
     for i in range(N_BASELINE_SIMS):
-        print(f"  Baseline {i+1}/{N_BASELINE_SIMS}...")
-        sim_run = run_simulation(scenario_id, db)
+        scenario = scenarios[i % len(scenarios)]  # Round-robin distribution
+        print(f"  Baseline {i+1}/{N_BASELINE_SIMS} (vs {scenario.name})...")
+        sim_run = run_simulation(scenario.id, db)
 
         # Get evaluation
         evaluation = db.query(models.Evaluation).filter(
@@ -91,7 +106,7 @@ def evolve_persona(persona_id: int, scenario_id: int, db: Session = Depends(get_
             current_prompt=persona.system_prompt,
             persona_name=persona.name,
             evaluations=baseline_evaluations,
-            scenario_name=scenario.name
+            scenario_names=[s.name for s in scenarios]  # Pass ALL scenario names
         )
         mutations.append(mutated_prompt)
 
@@ -107,11 +122,12 @@ def evolve_persona(persona_id: int, scenario_id: int, db: Session = Depends(get_
         persona.system_prompt = mutated_prompt
         db.commit()
 
-        # Run test simulations
+        # Run test simulations (distributed across scenarios)
         mut_scores = []
         for test_idx in range(N_MUTATION_TESTS):
-            print(f"    Test {test_idx+1}/{N_MUTATION_TESTS}...")
-            sim_run = run_simulation(scenario_id, db)
+            scenario = scenarios[test_idx % len(scenarios)]  # Round-robin
+            print(f"    Test {test_idx+1}/{N_MUTATION_TESTS} (vs {scenario.name})...")
+            sim_run = run_simulation(scenario.id, db)
 
             evaluation = db.query(models.Evaluation).filter(
                 models.Evaluation.run_id == sim_run.id

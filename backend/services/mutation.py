@@ -3,15 +3,15 @@ from services.llm import get_llm_response
 from services.vector_store import search_similar
 
 
-def generate_mutation(current_prompt, persona_name, evaluations, scenario_name):
+def generate_mutation(current_prompt, persona_name, evaluations, scenario_names):
     """
-    Generate improved system prompt based on evaluation history
+    Generate improved system prompt based on evaluation history across MULTIPLE scenarios
 
     Args:
         current_prompt: Current persona system prompt
         persona_name: Name of persona (for vector search)
         evaluations: List of recent evaluations with scores/feedback
-        scenario_name: Scenario type for context
+        scenario_names: List of scenario names tested (e.g., ["Angry Customer", "Evasive Customer"])
 
     Returns:
         New mutated system prompt
@@ -25,11 +25,13 @@ def generate_mutation(current_prompt, persona_name, evaluations, scenario_name):
     overall_avg = sum(avg_scores.values()) / 3
 
     # Find successful examples from vector store (score >= 8)
+    # Search broadly across ALL scenarios to find generalizable patterns
     try:
         success_results = search_similar(
-            f"{persona_name} {scenario_name} successful conversation",
-            k=3,
+            f"{persona_name} successful conversation across contexts",
+            k=5,  # Get more examples for better generalization
             filter_dict={"overall_score": {"$gte": 8.0}, "persona_a": persona_name}
+            # Note: Not filtering by scenario - want patterns that work across contexts
         )
         success_examples = "\n\n".join([
             f"SUCCESS EXAMPLE (score {success_results['metadatas'][0][i]['overall_score']}):\n{success_results['documents'][0][i][:500]}..."
@@ -42,8 +44,8 @@ def generate_mutation(current_prompt, persona_name, evaluations, scenario_name):
     # Find failure examples (score < 5)
     try:
         failure_results = search_similar(
-            f"{persona_name} {scenario_name} failed conversation",
-            k=2,
+            f"{persona_name} failed conversation",
+            k=3,  # Get more failure patterns to avoid
             filter_dict={"overall_score": {"$lt": 5.0}, "persona_a": persona_name}
         )
         failure_examples = "\n\n".join([
@@ -58,12 +60,15 @@ def generate_mutation(current_prompt, persona_name, evaluations, scenario_name):
     all_feedback = [e.get('feedback', '') for e in evaluations if e.get('feedback')]
 
     # Build mutation prompt
-    mutation_prompt = f"""You are evolving an AI agent's system prompt to improve performance.
+    mutation_prompt = f"""You are evolving an AI agent's system prompt to improve performance across MULTIPLE scenarios.
 
 CURRENT PROMPT:
 {current_prompt}
 
-PERFORMANCE DATA (last {len(evaluations)} simulations):
+TESTED ACROSS {len(scenario_names)} SCENARIOS:
+{chr(10).join(f"- {name}" for name in scenario_names)}
+
+PERFORMANCE DATA (last {len(evaluations)} simulations across these scenarios):
 - Average task completion: {avg_scores['task_completion']:.1f}/10
 - Average naturalness: {avg_scores['naturalness']:.1f}/10
 - Average goal achieved: {avg_scores['goal_achieved']:.1f}/10
@@ -85,6 +90,8 @@ Generate an improved system prompt that:
 3. Adopts successful patterns from high-scoring examples
 4. Avoids failed patterns from low-scoring examples
 5. Maintains appropriate tone and role
+6. **CRITICAL: Must work well across ALL {len(scenario_names)} different scenarios/contexts**
+7. **Be ROBUST and GENERALIZABLE, not optimized for just one situation**
 
 Return ONLY the new system prompt, nothing else. No explanations or meta-commentary."""
 

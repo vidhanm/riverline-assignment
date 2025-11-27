@@ -6,7 +6,7 @@ export default function Evolution() {
   const [personas, setPersonas] = useState([]);
   const [scenarios, setScenarios] = useState([]);
   const [selectedPersona, setSelectedPersona] = useState('');
-  const [selectedScenario, setSelectedScenario] = useState('');
+  const [selectedScenarios, setSelectedScenarios] = useState([]);  // Changed to array
   const [loading, setLoading] = useState(false);
   const [evolutionResult, setEvolutionResult] = useState(null);
   const [versions, setVersions] = useState([]);
@@ -53,8 +53,8 @@ export default function Evolution() {
   };
 
   const runEvolution = async () => {
-    if (!selectedPersona || !selectedScenario) {
-      alert('Please select both persona and scenario');
+    if (!selectedPersona || selectedScenarios.length === 0) {
+      alert('Please select persona and at least one scenario');
       return;
     }
 
@@ -62,8 +62,9 @@ export default function Evolution() {
     setEvolutionResult(null);
 
     try {
+      const scenarioIdsParam = selectedScenarios.join(',');  // Join with commas
       const response = await axios.post(
-        `${API_BASE_URL}/evolve/${selectedPersona}?scenario_id=${selectedScenario}`
+        `${API_BASE_URL}/evolve/${selectedPersona}?scenario_ids=${scenarioIdsParam}`
       );
       setEvolutionResult(response.data);
       fetchVersions(); // Refresh version list
@@ -120,22 +121,40 @@ export default function Evolution() {
               </div>
 
               <div>
-                <label className="text-sm text-gray-600 block mb-1">Scenario</label>
-                <select
-                  value={selectedScenario}
-                  onChange={(e) => setSelectedScenario(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
-                >
-                  <option value="">Select scenario...</option>
-                  {scenarios.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
+                <label className="text-sm text-gray-600 block mb-1">
+                  Scenarios (select multiple)
+                </label>
+                <div className="space-y-2 max-h-48 overflow-y-auto border rounded p-3 bg-white">
+                  {scenarios.length === 0 ? (
+                    <p className="text-xs text-gray-500 text-center py-2">No scenarios available</p>
+                  ) : (
+                    scenarios.map((s) => (
+                      <label key={s.id} className="flex items-start gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={selectedScenarios.includes(s.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedScenarios([...selectedScenarios, s.id]);
+                            } else {
+                              setSelectedScenarios(selectedScenarios.filter(id => id !== s.id));
+                            }
+                          }}
+                          className="mt-1"
+                        />
+                        <span className="text-sm flex-1">{s.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {selectedScenarios.length} scenario{selectedScenarios.length !== 1 ? 's' : ''} selected
+                </p>
               </div>
 
               <button
                 onClick={runEvolution}
-                disabled={loading}
+                disabled={loading || selectedScenarios.length === 0}
                 className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400"
               >
                 {loading ? 'Evolving... (~8 min)' : 'Evolve Now'}
