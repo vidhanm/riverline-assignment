@@ -636,6 +636,28 @@ Agents evolve based on performance across multiple customer scenarios.
 
 **Result:** Evolution learns real-world skill = adaptive response to unknown customer types.
 
+### Difficult Scenario Training (FIXES EVOLUTION STAGNATION)
+**Problem discovered:** Initial 5 scenarios had polarized scores:
+- Scenarios 1,2 (Angry, Evasive): 3.0/10 ❌ Marcus FAILS
+- Scenarios 3,4,5 (Curious, Cooperative, Desperate): 9.7/10 ✅ Marcus already near-perfect
+- **Baseline average:** 6.88/10 (mix of failures and successes)
+- **Mutations:** ~7.07/10 (barely better, because they can't improve already-perfect scenarios)
+
+**Solution:** Add MORE difficult scenarios (like 1,2) to focus evolution on failures.
+
+**New personas added:**
+- James (Threatening Customer): Hostile, threatens to sue, hangs up
+- Karen (Dismissive Customer): Condescending, mocks Marcus, doesn't take seriously
+- Tony (Blame-Shifting Customer): Blames bank/economy, never admits responsibility
+- Emma (Silent Customer): One-word answers, withdrawn, non-communicative
+
+**New scenario distribution:**
+- 6 HARD scenarios (IDs: 1,2,6,7,8,9): Expected 3-4/10 baseline
+- 3 EASY scenarios (IDs: 3,4,5): Already 9+/10
+- **For evolution: Select ONLY hard scenarios (1,2,6,7,8,9)** to train on weaknesses
+
+**Expected result:** Baseline ~3.5/10 → Mutations ~5-6/10 = **CLEAR IMPROVEMENT**
+
 ### Configuration Changes
 **Earlier:** FAILURE_THRESHOLD = 6.0, N_MUTATION_TESTS = 3 (unfair comparison)
 **Now:** FAILURE_THRESHOLD = 8.5, N_MUTATION_TESTS = 5 (fair comparison across all scenarios)
