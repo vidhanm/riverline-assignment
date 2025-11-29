@@ -662,6 +662,53 @@ Agents evolve based on performance across multiple customer scenarios.
 **Earlier:** FAILURE_THRESHOLD = 6.0, N_MUTATION_TESTS = 3 (unfair comparison)
 **Now:** FAILURE_THRESHOLD = 8.5, N_MUTATION_TESTS = 5 (fair comparison across all scenarios)
 
+### Hindi Language Support ✅ (Text-Only)
+
+**Why:** Debt collection in India is primarily conducted in Hindi with native speakers.
+
+**Implementation:**
+1. **Personas:** All personas updated with Hindi instruction at prompt start
+2. **Evaluation:** Auto-detects Hindi (Devanagari script) and evaluates with cultural context
+3. **Limitation:** Audio still English (Deepgram doesn't support Hindi TTS)
+
+**Enable Hindi:**
+```bash
+cd backend
+python enable_hindi.py
+```
+
+**Disable Hindi (revert to English):**
+- Manually remove Hindi instruction from persona prompts in database
+- Or re-run seed scripts
+
+**Result:**
+- Conversations in Hindi Devanagari script
+- LLM evaluation considers Hindi naturalness and cultural norms
+- Audio mismatch (English voice, Hindi text) - acceptable for text-based testing
+
+**Future:** Integrate Google Cloud TTS or Azure TTS for native Hindi voices.
+
+### Audio Generation Control
+
+**Disable audio (for faster simulations):**
+```bash
+# In backend/.env
+DISABLE_TTS=true
+```
+
+**Enable audio:**
+```bash
+# In backend/.env
+DISABLE_TTS=false
+```
+
+**Why disable:**
+- Faster simulations (~50% speed improvement)
+- No audio-text mismatch with Hindi
+- Text transcripts sufficient for testing
+
+**Current status:** Audio disabled (DISABLE_TTS=true)
+
 ### Tasks
 
 1. Add AgentVersion model
@@ -860,19 +907,49 @@ text-2xl font-bold text-blue-600     /* Score display */
 bg-green-100 text-green-800 px-2     /* Active badge */
 ```
 
-### For Later (Post-MVP)
+### Evolution Visualization (Tree + Reasoning) ✅ COMPLETE
 
-- Tree visualization (DGM-style graph with branches)
-- Live progress updates (polling/websockets)
-- Side-by-side diff view with highlighting
-- Multi-scenario evolution testing
-- Automated background evolution
-- Fitness score chart/timeline
+**Problem:** Assignment requires visual tree structure + mutation reasoning logs
 
-**Current approach:** Start with simplest MVP, iterate based on actual needs.
+**Solution:** Tree visualization component + mutation details panel
 
-**Earlier we considered:** Complex tree graphs, live progress bars, side-by-side diffs.
-**Now doing:** Linear list, simple spinner, toggle view - easier to build, good enough for MVP.
+**Changes:**
+1. **Backend - Mutation Metadata Storage**
+   - Added `mutation_metadata` JSON column (success/failure examples, feedback, scores)
+   - Added `reasoning_prompt` TEXT column (full LLM prompt for transparency)
+   - Migration: `backend/migrate_mutation_metadata.py`
+   - Modified `services/mutation.py` to return dict with metadata
+   - Modified `routers/evolve.py` to store metadata in DB
+
+2. **Frontend - Tree Visualization**
+   - Created `components/EvolutionTree.jsx`
+     - SVG lines connecting parent→child versions
+     - Solid line = improvement, dashed = regression
+     - Yellow circles = winning mutations
+     - Shows fitness scores, improvement deltas
+   - Created `components/MutationDetails.jsx`
+     - Performance metrics (task_completion, naturalness, goal_achieved)
+     - Scenarios tested
+     - Evaluator feedback
+     - ✅ Success examples (high-scoring conversations)
+     - ❌ Failure examples (low-scoring conversations)
+     - 🧠 Full reasoning prompt (LLM-as-mutation-generator)
+     - 📝 Generated prompt
+
+3. **Frontend - Evolution.jsx Updates**
+   - View mode toggle: 🌳 Tree vs 📋 List
+   - Click version → shows mutation reasoning panel
+   - Mutation tabs (Mutation 1, 2, 3) with ⭐ winner badge
+   - All reasoning data visible: "why did LLM generate this mutation?"
+
+**Visualization Flow:**
+```
+User clicks version → Tree highlights node → Mutation details load
+User clicks mutation tab → Shows reasoning (feedback, examples, prompt)
+```
+
+**Earlier approach:** Linear list only (assignment requirement not met)
+**Current approach:** Tree graph + full mutation reasoning (assignment compliant)
 
 ---
 

@@ -14,7 +14,10 @@ def generate_mutation(current_prompt, persona_name, evaluations, scenario_names)
         scenario_names: List of scenario names tested (e.g., ["Angry Customer", "Evasive Customer"])
 
     Returns:
-        New mutated system prompt
+        dict with:
+            - mutated_prompt: New system prompt
+            - metadata: Reasoning data (success/failure examples, feedback, scores)
+            - reasoning_prompt: Full prompt sent to LLM
     """
     # Calculate average scores
     avg_scores = {
@@ -98,4 +101,19 @@ Return ONLY the new system prompt, nothing else. No explanations or meta-comment
     # Generate mutation
     mutated_prompt = get_llm_response(mutation_prompt, max_tokens=500)
 
-    return mutated_prompt.strip()
+    # Package metadata for visualization
+    metadata = {
+        'avg_scores': avg_scores,
+        'overall_avg': overall_avg,
+        'feedback_used': all_feedback,
+        'success_examples': success_examples[:500] if success_examples else None,  # Truncate for storage
+        'failure_examples': failure_examples[:500] if failure_examples else None,
+        'scenarios_tested': scenario_names,
+        'num_evaluations': len(evaluations)
+    }
+
+    return {
+        'mutated_prompt': mutated_prompt.strip(),
+        'metadata': metadata,
+        'reasoning_prompt': mutation_prompt
+    }

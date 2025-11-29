@@ -32,7 +32,7 @@ def get_llm_response(system_prompt, messages=[], max_tokens=None):
             base_url="https://integrate.api.nvidia.com/v1",
             api_key=os.getenv("NVIDIA_API_KEY")
         )
-        model = "meta/llama-3.3-70b-instruct"
+        model = "qwen/qwen3-235b-a22b"
     else:
         raise ValueError(f"Invalid PROVIDER: {provider}. Use 'groq', 'cerebras', or 'nvidia'")
 
@@ -43,9 +43,22 @@ def get_llm_response(system_prompt, messages=[], max_tokens=None):
         "model": model,
         "messages": full_messages
     }
-    if max_tokens:
+
+    # Add provider-specific parameters
+    if provider == "nvidia":
+        params["temperature"] = 0.2
+        params["top_p"] = 0.7
+        params["max_tokens"] = max_tokens if max_tokens else 8192
+        params["extra_body"] = {"chat_template_kwargs": {"thinking": False}}
+        params["stream"] = False
+    elif max_tokens:
         params["max_tokens"] = max_tokens
 
-    response = client.chat.completions.create(**params)
-
-    return response.choices[0].message.content
+    try:
+        response = client.chat.completions.create(**params)
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"\n!!! LLM API ERROR !!!")
+        print(f"Provider: {provider}, Model: {model}")
+        print(f"Error: {type(e).__name__}: {str(e)}")
+        raise

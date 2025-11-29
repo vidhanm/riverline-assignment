@@ -13,6 +13,11 @@ def text_to_speech(text, voice_id=None):
     Returns audio file path or None if failed
     """
     try:
+        # Check if TTS is disabled
+        if os.getenv("DISABLE_TTS", "false").lower() == "true":
+            print("TTS disabled via DISABLE_TTS env variable")
+            return None
+
         api_key = os.getenv("DEEPGRAM_API_KEY")
         if not api_key:
             print("DEEPGRAM_API_KEY not set, skipping TTS")

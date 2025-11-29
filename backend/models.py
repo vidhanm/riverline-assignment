@@ -77,4 +77,28 @@ class AgentVersion(Base):
     system_prompt = Column(String)
     fitness_score = Column(Float)
     parent_version_id = Column(Integer, ForeignKey("agent_versions.id"), nullable=True)
+    baseline_score = Column(Float)  # Store baseline score for comparison
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    mutation_attempts = relationship("MutationAttempt", back_populates="version")
+
+
+class MutationAttempt(Base):
+    __tablename__ = "mutation_attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    version_id = Column(Integer, ForeignKey("agent_versions.id"))
+    mutation_index = Column(Integer)  # 1, 2, 3
+    mutated_prompt = Column(String)
+    avg_score = Column(Float)
+    is_winner = Column(Integer, default=0)  # 1 if this mutation was selected
+
+    # Evolution reasoning data (for visualization)
+    mutation_metadata = Column(JSON, nullable=True)  # Stores: success_examples, failure_examples, feedback_used, avg_scores
+    reasoning_prompt = Column(String, nullable=True)  # Full prompt sent to LLM
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    version = relationship("AgentVersion", back_populates="mutation_attempts")

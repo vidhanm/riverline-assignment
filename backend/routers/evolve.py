@@ -102,24 +102,24 @@ def evolve_persona(persona_id: int, scenario_ids: str, db: Session = Depends(get
 
     for i in range(N_MUTATIONS):
         print(f"  Generating mutation {i+1}/{N_MUTATIONS}...")
-        mutated_prompt = generate_mutation(
+        mutation_result = generate_mutation(
             current_prompt=persona.system_prompt,
             persona_name=persona.name,
             evaluations=baseline_evaluations,
             scenario_names=[s.name for s in scenarios]  # Pass ALL scenario names
         )
-        mutations.append(mutated_prompt)
+        mutations.append(mutation_result)  # Now storing dict with prompt + metadata
 
     # Step 4: Test each mutation
     print(f"\nStep 3: Testing mutations...")
     mutation_results = []
 
-    for mut_idx, mutated_prompt in enumerate(mutations):
+    for mut_idx, mutation_data in enumerate(mutations):
         print(f"\n  Testing mutation {mut_idx+1}/{N_MUTATIONS}...")
 
         # Temporarily update persona prompt
         original_prompt = persona.system_prompt
-        persona.system_prompt = mutated_prompt
+        persona.system_prompt = mutation_data['mutated_prompt']
         db.commit()
 
         # Run test simulations (distributed across scenarios)
@@ -141,9 +141,11 @@ def evolve_persona(persona_id: int, scenario_ids: str, db: Session = Depends(get
 
         mutation_results.append({
             'mutation_id': mut_idx,
-            'prompt': mutated_prompt,
+            'prompt': mutation_data['mutated_prompt'],
             'avg_score': avg_mutation_score,
-            'scores': mut_scores
+            'scores': mut_scores,
+            'metadata': mutation_data['metadata'],
+            'reasoning_prompt': mutation_data['reasoning_prompt']
         })
 
         # Restore original prompt
@@ -180,9 +182,24 @@ def evolve_persona(persona_id: int, scenario_ids: str, db: Session = Depends(get
         version=new_version_num,
         system_prompt=best_mutation['prompt'],
         fitness_score=best_mutation['avg_score'],
+        baseline_score=avg_baseline,
         parent_version_id=latest_version.id if latest_version else None
     )
     db.add(new_version)
+    db.flush()  # Get version.id before adding mutation attempts
+
+    # Save all mutation attempts
+    for mut_result in mutation_results:
+        mutation_attempt = models.MutationAttempt(
+            version_id=new_version.id,
+            mutation_index=mut_result['mutation_id'] + 1,  # 1-indexed
+            mutated_prompt=mut_result['prompt'],
+            avg_score=mut_result['avg_score'],
+            is_winner=1 if mut_result['mutation_id'] == best_mutation['mutation_id'] else 0,
+            mutation_metadata=mut_result['metadata'],
+            reasoning_prompt=mut_result['reasoning_prompt']
+        )
+        db.add(mutation_attempt)
 
     # Update persona with new prompt
     persona.system_prompt = best_mutation['prompt']
@@ -209,7 +226,7 @@ def evolve_persona(persona_id: int, scenario_ids: str, db: Session = Depends(get
 
 @router.get("/versions/{persona_id}")
 def get_persona_versions(persona_id: int, db: Session = Depends(get_db)):
-    """Get all versions of a persona"""
+    """Get all versions of a persona with full prompt history and mutation attempts"""
     versions = db.query(models.AgentVersion).filter(
         models.AgentVersion.persona_id == persona_id
     ).order_by(models.AgentVersion.version.desc()).all()
@@ -220,9 +237,22 @@ def get_persona_versions(persona_id: int, db: Session = Depends(get_db)):
             {
                 "id": v.id,
                 "version": v.version,
+                "system_prompt": v.system_prompt,
                 "fitness_score": v.fitness_score,
+                "baseline_score": v.baseline_score,
                 "created_at": v.created_at,
-                "parent_version_id": v.parent_version_id
+                "parent_version_id": v.parent_version_id,
+                "mutation_attempts": [
+                    {
+                        "mutation_index": m.mutation_index,
+                        "mutated_prompt": m.mutated_prompt,
+                        "avg_score": m.avg_score,
+                        "is_winner": m.is_winner,
+                        "mutation_metadata": m.mutation_metadata,
+                        "reasoning_prompt": m.reasoning_prompt
+                    }
+                    for m in v.mutation_attempts
+                ] if v.mutation_attempts else []
             }
             for v in versions
         ]

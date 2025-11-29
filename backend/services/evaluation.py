@@ -14,11 +14,18 @@ def evaluate_conversation(transcript, goal):
         for turn in transcript
     ])
 
+    # Check if conversation is in Hindi (simple heuristic)
+    is_hindi = any("हिंदी" in turn['text'] or any(ord(c) >= 0x0900 and ord(c) <= 0x097F for c in turn['text']) for turn in transcript if 'text' in turn)
+
+    language_note = ""
+    if is_hindi:
+        language_note = "\n\nNOTE: This conversation is conducted in Hindi (Devanagari script). Evaluate naturalness based on Hindi language norms and cultural appropriateness for Indian debt collection context."
+
     prompt = f"""Evaluate this conversation:
 
 {formatted_transcript}
 
-Scenario Goal: {goal}
+Scenario Goal: {goal}{language_note}
 
 Score 1-10 for:
 - task_completion: Did they complete the conversation goal?

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import EvolutionTree from '../components/EvolutionTree';
+import MutationDetails from '../components/MutationDetails';
 
 export default function Evolution() {
   const [personas, setPersonas] = useState([]);
@@ -12,6 +14,8 @@ export default function Evolution() {
   const [versions, setVersions] = useState([]);
   const [selectedVersions, setSelectedVersions] = useState([null, null]); // For comparison
   const [compareView, setCompareView] = useState(0); // 0 = version 1, 1 = version 2
+  const [viewMode, setViewMode] = useState('tree'); // 'tree' or 'list'
+  const [selectedMutation, setSelectedMutation] = useState(null);
 
   useEffect(() => {
     fetchPersonas();
@@ -76,23 +80,6 @@ export default function Evolution() {
     }
   };
 
-  const activateVersion = async (versionId) => {
-    if (!confirm('Activate this version? It will become the current persona prompt.')) return;
-
-    try {
-      await axios.post(`${API_BASE_URL}/evolve/versions/${versionId}/activate`);
-      alert('Version activated successfully!');
-      fetchVersions(); // Refresh to show updated active status
-    } catch (error) {
-      console.error('Error activating version:', error);
-      alert('Error: ' + (error.response?.data?.detail || error.message));
-    }
-  };
-
-  const getVersionPrompt = (versionId) => {
-    const version = versions.find(v => v.id === versionId);
-    return version?.system_prompt || '';
-  };
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -168,84 +155,120 @@ export default function Evolution() {
             )}
           </div>
 
-          {/* Version History */}
-          {selectedPersona && (
-            <div className="border rounded-lg p-4">
-              <h2 className="font-semibold mb-3">Version History</h2>
-
-              {versions.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">
-                  No versions yet. Run evolution to create first version.
-                </p>
-              ) : (
-                <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                  {versions.map((version, idx) => {
-                    const prevVersion = versions[idx + 1];
-                    const improvement = prevVersion
-                      ? (version.fitness_score - prevVersion.fitness_score).toFixed(1)
-                      : null;
-
-                    return (
-                      <div
-                        key={version.id}
-                        className="border rounded-lg p-3 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <div className="font-medium">
-                              Version {version.version}
-                              {idx === 0 && (
-                                <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
-                                  ACTIVE
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {new Date(version.created_at).toLocaleDateString()}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xl font-bold text-blue-600">
-                              {version.fitness_score.toFixed(1)}/10
-                            </div>
-                          </div>
-                        </div>
-
-                        {improvement && (
-                          <div className={`text-xs mb-2 ${
-                            parseFloat(improvement) > 0 ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            ↑ {improvement > 0 ? '+' : ''}{improvement} from v{version.version - 1}
-                          </div>
-                        )}
-
-                        <div className="flex gap-2">
-                          {idx !== 0 && (
-                            <button
-                              onClick={() => activateVersion(version.id)}
-                              className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                            >
-                              Activate
-                            </button>
-                          )}
-                          <button
-                            onClick={() => setSelectedVersions([version.id, null])}
-                            className="text-xs px-2 py-1 border rounded hover:bg-gray-100"
-                          >
-                            View Prompt
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+          {/* View Mode Toggle */}
+          {selectedPersona && versions.length > 0 && (
+            <div className="border rounded-lg p-3 bg-gray-50">
+              <label className="text-sm text-gray-600 block mb-2">View Mode</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setViewMode('tree')}
+                  className={`flex-1 px-3 py-2 rounded text-sm ${
+                    viewMode === 'tree'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white border hover:bg-gray-100'
+                  }`}
+                >
+                  🌳 Tree
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`flex-1 px-3 py-2 rounded text-sm ${
+                    viewMode === 'list'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white border hover:bg-gray-100'
+                  }`}
+                >
+                  📋 List
+                </button>
+              </div>
             </div>
           )}
         </div>
 
         {/* Main Content */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Evolution Tree or Mutation Details */}
+          {selectedPersona && versions.length > 0 && (
+            <>
+              {viewMode === 'tree' ? (
+                <EvolutionTree
+                  versions={versions}
+                  onSelectVersion={(versionId) => {
+                    const version = versions.find(v => v.id === versionId);
+                    setSelectedVersions([versionId, null]);
+                    // Show first mutation by default
+                    if (version?.mutation_attempts?.length > 0) {
+                      setSelectedMutation(version.mutation_attempts[0]);
+                    }
+                  }}
+                />
+              ) : (
+                <div className="border rounded-lg p-4">
+                  <h2 className="font-semibold mb-3">Version List</h2>
+                  <div className="space-y-2">
+                    {versions.map((version, idx) => (
+                      <div
+                        key={version.id}
+                        onClick={() => {
+                          setSelectedVersions([version.id, null]);
+                          if (version.mutation_attempts?.length > 0) {
+                            setSelectedMutation(version.mutation_attempts[0]);
+                          }
+                        }}
+                        className="border rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="font-medium">Version {version.version}</span>
+                            {idx === 0 && (
+                              <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
+                                ACTIVE
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xl font-bold text-blue-600">
+                            {version.fitness_score.toFixed(1)}/10
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Mutation Details Panel */}
+              {selectedVersions[0] && (
+                <div className="border rounded-lg p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">Evolution Reasoning</h2>
+                    {versions.find(v => v.id === selectedVersions[0])?.mutation_attempts?.length > 0 && (
+                      <div className="flex gap-2">
+                        {versions.find(v => v.id === selectedVersions[0]).mutation_attempts.map((mut) => (
+                          <button
+                            key={mut.mutation_index}
+                            onClick={() => setSelectedMutation(mut)}
+                            className={`px-3 py-1 rounded text-sm ${
+                              selectedMutation?.mutation_index === mut.mutation_index
+                                ? 'bg-blue-500 text-white'
+                                : 'border hover:bg-gray-100'
+                            }`}
+                          >
+                            Mutation {mut.mutation_index}
+                            {mut.is_winner && ' ⭐'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <MutationDetails
+                    mutation={selectedMutation}
+                    versionNumber={versions.find(v => v.id === selectedVersions[0])?.version}
+                  />
+                </div>
+              )}
+            </>
+          )}
+
           {/* Evolution Results */}
           {evolutionResult && (
             <div className="border rounded-lg p-6 mb-6">
@@ -312,40 +335,6 @@ export default function Evolution() {
             </div>
           )}
 
-          {/* Prompt Comparison */}
-          {selectedVersions[0] && (
-            <div className="border rounded-lg p-6">
-              <h2 className="text-xl font-bold mb-4">Prompt Viewer</h2>
-
-              <div className="bg-gray-50 border rounded-lg p-4">
-                <div className="mb-3">
-                  <label className="text-sm text-gray-600 block mb-1">Select Version</label>
-                  <select
-                    value={selectedVersions[0] || ''}
-                    onChange={(e) => setSelectedVersions([parseInt(e.target.value), null])}
-                    className="w-full border rounded px-3 py-2"
-                  >
-                    {versions.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        Version {v.version} - {v.fitness_score.toFixed(1)}/10
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="bg-white border rounded p-4">
-                  <pre className="whitespace-pre-wrap text-sm text-gray-700">
-                    {getVersionPrompt(selectedVersions[0])}
-                  </pre>
-                </div>
-
-                <div className="mt-3 text-sm text-gray-600">
-                  <strong>Fitness Score:</strong>{' '}
-                  {versions.find(v => v.id === selectedVersions[0])?.fitness_score.toFixed(1)}/10
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Empty State */}
           {!evolutionResult && !selectedVersions[0] && (
