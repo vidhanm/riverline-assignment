@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 
@@ -242,221 +242,153 @@ LIVEKIT_API_SECRET=your-api-secret`}
 }
 
 
-// Main Voice Chat Interface Component - Push to Talk Style
+// Main Voice Chat Interface Component - Clean & Focused
 function VoiceChatInterface({ persona, onEnd }) {
-  const { state, agentTranscriptions } = useVoiceAssistant();
+  const { state } = useVoiceAssistant();
   const transcriptions = useTranscriptions();
   const [isMicOn, setIsMicOn] = useState(false);
-  const [currentTurn, setCurrentTurn] = useState('agent'); // 'user' or 'agent'
+  const messagesEndRef = useRef(null);
 
-  // Process transcriptions into messages format
-  // Agent identity typically contains 'agent' or is not 'customer'
+  // DEBUG: Remove after testing
+  // useEffect(() => {
+  //   if (transcriptions.length > 0) {
+  //     console.log('=== TRANSCRIPTIONS DEBUG ===');
+  //     transcriptions.forEach((t, idx) => {
+  //       console.log(`[${idx}] participantInfo:`, t.participantInfo);
+  //     });
+  //   }
+  // }, [transcriptions]);
+
+  // Process transcriptions into messages
+  // Agent has identity like "agent-xxx", User has identity "customer"
   const messages = transcriptions.map((t, idx) => {
-    const participantId = t.participant?.identity || '';
-    // User is 'customer', agent is anything else (usually contains 'agent' or is the agent participant)
-    const isUser = participantId === 'customer';
-    
+    const identity = t.participantInfo?.identity || '';
+    const isUser = identity === 'customer';
     return {
       id: idx,
-      text: t.text || t.segment?.text || '',
-      isUser: isUser,
+      text: t.text || '',
+      isUser,
       timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      participant: participantId, // for debugging
     };
   }).filter(m => m.text.trim() !== '');
 
-  // Toggle microphone
-  const toggleMic = () => {
-    if (isMicOn) {
-      // User finished speaking, agent's turn
-      setIsMicOn(false);
-      setCurrentTurn('agent');
-    } else {
-      // User wants to speak
-      setIsMicOn(true);
-      setCurrentTurn('user');
-    }
-  };
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  // Get status based on current turn and mic state
-  const getStatusInfo = () => {
-    if (isMicOn) {
-      return { 
-        text: 'Your turn - Speak now...', 
-        subtext: 'Click mic when done',
-        color: 'text-green-400' 
-      };
-    } else if (currentTurn === 'agent') {
-      return { 
-        text: "Agent's turn", 
-        subtext: 'Click mic to respond',
-        color: 'text-blue-400' 
-      };
-    }
-    return { 
-      text: 'Ready', 
-      subtext: 'Click mic to start',
-      color: 'text-gray-400' 
-    };
-  };
-
-  const statusInfo = getStatusInfo();
+  const toggleMic = () => setIsMicOn(!isMicOn);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
-      {/* Header */}
-      <div className="text-center py-6">
-        <h1 className="text-2xl font-bold text-white">🎙️ Voice Chat</h1>
-        <p className="text-gray-400 text-sm">Speaking with {persona?.name || 'Marcus'}</p>
-      </div>
+    <div className="h-screen bg-slate-900 flex">
+      {/* Left Panel - Controls */}
+      <div className="flex-1 flex flex-col items-center justify-center relative">
+        
+        {/* End Call - Top Right Corner */}
+        <button
+          onClick={onEnd}
+          className="absolute top-4 right-4 text-red-400 hover:text-red-300 hover:bg-red-500/10 
+                     px-4 py-2 rounded-lg transition-all text-sm flex items-center gap-2"
+        >
+          <span>✕</span>
+          <span>End</span>
+        </button>
 
-      {/* Main Content */}
-      <div className="flex-1 flex">
-        {/* Left Panel - Agent & Controls */}
-        <div className="flex-1 flex flex-col items-center justify-center px-8">
+        {/* Agent Name - Compact */}
+        <div className="text-center mb-10">
+          <h2 className="text-xl font-semibold text-white">{persona?.name || 'Marcus'}</h2>
+          <p className="text-slate-500 text-sm">Debt Collection Agent</p>
+        </div>
+
+        {/* Hero Mic Button */}
+        <button
+          onClick={toggleMic}
+          className={`
+            relative w-40 h-40 rounded-full flex flex-col items-center justify-center
+            transition-all duration-300 transform cursor-pointer
+            ${isMicOn 
+              ? 'bg-gradient-to-br from-green-400 to-green-600 scale-105 shadow-2xl shadow-green-500/40' 
+              : 'bg-slate-800 hover:bg-slate-700 border-2 border-slate-600 hover:border-slate-500'
+            }
+          `}
+        >
+          {/* Pulse animation when active */}
+          {isMicOn && (
+            <div className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-20" />
+          )}
           
-          {/* Agent Info */}
-          <div className="text-center mb-8">
-            <div className="w-24 h-24 bg-slate-700 rounded-full flex items-center justify-center text-5xl mb-4 mx-auto border-2 border-slate-600">
-              🎙️
-            </div>
-            <h2 className="text-2xl font-bold text-white">
-              {persona?.name || 'Marcus'}
-            </h2>
-            <p className="text-gray-400">Debt Collection Agent</p>
-            {persona?.has_evolved && (
-              <span className="inline-block mt-2 bg-green-900/50 text-green-400 px-3 py-1 rounded-full text-xs">
-                Evolved v{persona.version} • Score: {persona.fitness_score?.toFixed(1)}/10
-              </span>
-            )}
-          </div>
+          {/* Icon */}
+          <span className="text-5xl relative z-10 mb-1">
+            {isMicOn ? '🎤' : '🎙️'}
+          </span>
+          
+          {/* Label inside button */}
+          <span className={`text-xs font-medium relative z-10 ${isMicOn ? 'text-green-100' : 'text-slate-400'}`}>
+            {isMicOn ? 'Tap to stop' : 'Tap to speak'}
+          </span>
+        </button>
 
-          {/* Main Mic Button */}
-          <div className="relative mb-8">
-            {/* Pulsing rings when mic is on */}
-            {isMicOn && (
-              <>
-                <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-20" 
-                     style={{ animationDuration: '1s' }} />
-                <div className="absolute inset-2 bg-green-500 rounded-full animate-ping opacity-30" 
-                     style={{ animationDuration: '1s', animationDelay: '0.3s' }} />
-              </>
-            )}
-            
-            {/* Mic Button */}
-            <button
-              onClick={toggleMic}
-              className={`
-                relative z-10 w-32 h-32 rounded-full flex items-center justify-center
-                text-5xl transition-all duration-300 transform
-                ${isMicOn 
-                  ? 'bg-green-500 hover:bg-green-600 scale-110 shadow-lg shadow-green-500/50' 
-                  : 'bg-slate-700 hover:bg-slate-600 border-4 border-slate-600 hover:border-blue-500'
-                }
-              `}
-            >
-              {isMicOn ? '🎤' : '🎙️'}
-            </button>
-          </div>
-
-          {/* Status Text */}
-          <div className="text-center mb-6">
-            <p className={`text-xl font-semibold ${statusInfo.color}`}>
-              {statusInfo.text}
-            </p>
-            <p className="text-gray-500 text-sm mt-1">
-              {statusInfo.subtext}
-            </p>
-          </div>
-
-          {/* Turn Indicator */}
-          <div className="flex items-center gap-8 mb-8">
-            <div className={`text-center transition-all ${isMicOn ? 'opacity-100 scale-110' : 'opacity-50'}`}>
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl
-                ${isMicOn ? 'bg-green-500' : 'bg-slate-700'}`}>
-                👤
-              </div>
-              <p className="text-xs text-gray-400 mt-1">You</p>
-            </div>
-            
-            <div className="text-2xl text-gray-600">⟷</div>
-            
-            <div className={`text-center transition-all ${!isMicOn ? 'opacity-100 scale-110' : 'opacity-50'}`}>
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl
-                ${!isMicOn ? 'bg-blue-500' : 'bg-slate-700'}`}>
-                🤖
-              </div>
-              <p className="text-xs text-gray-400 mt-1">Agent</p>
-            </div>
-          </div>
-
-          {/* End Call Button */}
-          <button
-            onClick={onEnd}
-            className="bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white 
-                       px-6 py-2 rounded-full font-medium transition-all duration-300
-                       border border-red-500/50 hover:border-red-500
-                       flex items-center gap-2"
-          >
-            <span>📞</span>
-            <span>End Call</span>
-          </button>
+        {/* Status - Single Line */}
+        <div className="mt-8 text-center">
+          <p className={`text-lg font-medium ${isMicOn ? 'text-green-400' : 'text-slate-400'}`}>
+            {isMicOn ? '● Recording...' : 'Ready to listen'}
+          </p>
         </div>
 
-        {/* Right Panel - Transcript */}
-        <div className="w-96 bg-white/5 backdrop-blur border-l border-slate-700 flex flex-col">
-          {/* Transcript Header */}
-          <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/50">
-            <h3 className="font-semibold text-white flex items-center gap-2">
-              💬 Conversation
-            </h3>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {messages.length === 0 ? (
-              <div className="text-center text-gray-500 py-12">
-                <p className="text-4xl mb-3">💬</p>
-                <p>Conversation will appear here</p>
-                <p className="text-sm mt-1">Click the mic to start speaking</p>
-              </div>
-            ) : (
-              messages.map((msg, idx) => (
-                <div 
-                  key={idx}
-                  className={`mb-3 ${msg.isUser ? 'text-right' : 'text-left'}`}
-                >
-                  <div className={`
-                    inline-block max-w-[85%] px-4 py-2 rounded-2xl
-                    ${msg.isUser 
-                      ? 'bg-blue-500 text-white rounded-br-md' 
-                      : 'bg-slate-700 text-gray-200 rounded-bl-md'
-                    }
-                  `}>
-                    <p className="text-sm">{msg.text}</p>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-1 px-2">
-                    {msg.timestamp}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Tip */}
-          <div className="p-3 border-t border-slate-700 bg-slate-800/30">
-            <p className="text-xs text-gray-500 text-center">
-              💡 Speak in Hindi for best results
-            </p>
-          </div>
-        </div>
+        {/* Connection status - subtle footer */}
+        <p className="absolute bottom-4 text-slate-600 text-xs">
+          LiveKit • Sarvam AI
+        </p>
       </div>
 
-      {/* Footer */}
-      <div className="text-center py-3 border-t border-slate-800">
-        <p className="text-gray-600 text-xs">
-          Connected via LiveKit • Sarvam AI Voice
-        </p>
+      {/* Right Panel - Conversation */}
+      <div className="w-[380px] bg-slate-800/50 border-l border-slate-700/50 flex flex-col">
+        
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-slate-700/50">
+          <h3 className="font-medium text-white">Conversation</h3>
+        </div>
+
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          {messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-500">
+              <p className="text-3xl mb-3">💬</p>
+              <p className="text-sm">Start speaking to begin</p>
+            </div>
+          ) : (
+            <>
+              {messages.map((msg, idx) => (
+                <div key={idx} className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] ${msg.isUser ? 'order-2' : 'order-1'}`}>
+                    {/* Speaker label */}
+                    <p className={`text-xs mb-1 ${msg.isUser ? 'text-right text-slate-500' : 'text-slate-500'}`}>
+                      {msg.isUser ? 'You' : persona?.name || 'Marcus'}
+                    </p>
+                    {/* Message bubble */}
+                    <div className={`
+                      px-4 py-2.5 rounded-2xl text-sm leading-relaxed
+                      ${msg.isUser 
+                        ? 'bg-blue-500 text-white rounded-br-sm' 
+                        : 'bg-slate-700 text-slate-100 rounded-bl-sm'
+                      }
+                    `}>
+                      {msg.text}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </>
+          )}
+        </div>
+
+        {/* Footer tip */}
+        <div className="px-5 py-3 border-t border-slate-700/50 bg-slate-800/30">
+          <p className="text-xs text-slate-500 text-center">
+            💡 बेहतर परिणाम के लिए हिंदी में बोलें
+          </p>
+        </div>
       </div>
     </div>
   );
