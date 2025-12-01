@@ -19,11 +19,11 @@ def generate_mutation(current_prompt, persona_name, evaluations, scenario_names)
             - metadata: Reasoning data (success/failure examples, feedback, scores)
             - reasoning_prompt: Full prompt sent to LLM
     """
-    # Calculate average scores
+    # Calculate average scores (using new metric names aligned with assignment)
     avg_scores = {
-        'task_completion': sum(e['task_completion'] for e in evaluations) / len(evaluations),
-        'naturalness': sum(e['naturalness'] for e in evaluations) / len(evaluations),
-        'goal_achieved': sum(e['goal_achieved'] for e in evaluations) / len(evaluations)
+        'goal_completion': sum(e.get('goal_completion', e.get('task_completion', 5)) for e in evaluations) / len(evaluations),
+        'conversational_quality': sum(e.get('conversational_quality', e.get('naturalness', 5)) for e in evaluations) / len(evaluations),
+        'compliance': sum(e.get('compliance', 5) for e in evaluations) / len(evaluations)
     }
     overall_avg = sum(avg_scores.values()) / 3
 
@@ -72,9 +72,9 @@ TESTED ACROSS {len(scenario_names)} SCENARIOS:
 {chr(10).join(f"- {name}" for name in scenario_names)}
 
 PERFORMANCE DATA (last {len(evaluations)} simulations across these scenarios):
-- Average task completion: {avg_scores['task_completion']:.1f}/10
-- Average naturalness: {avg_scores['naturalness']:.1f}/10
-- Average goal achieved: {avg_scores['goal_achieved']:.1f}/10
+- Average goal completion: {avg_scores['goal_completion']:.1f}/10
+- Average conversational quality: {avg_scores['conversational_quality']:.1f}/10
+- Average compliance: {avg_scores['compliance']:.1f}/10
 - Overall average: {overall_avg:.1f}/10
 
 FEEDBACK FROM EVALUATIONS:

@@ -74,10 +74,11 @@ def evolve_persona(persona_id: int, scenario_ids: str, db: Session = Depends(get
 
         if evaluation:
             baseline_scores.append(evaluation.overall_score)
+            # Handle both old and new metric names for backwards compatibility
             baseline_evaluations.append({
-                'task_completion': evaluation.scores['task_completion'],
-                'naturalness': evaluation.scores['naturalness'],
-                'goal_achieved': evaluation.scores['goal_achieved'],
+                'goal_completion': evaluation.scores.get('goal_completion', evaluation.scores.get('task_completion', 5)),
+                'conversational_quality': evaluation.scores.get('conversational_quality', evaluation.scores.get('naturalness', 5)),
+                'compliance': evaluation.scores.get('compliance', 5),
                 'feedback': evaluation.feedback
             })
 

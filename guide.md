@@ -498,55 +498,66 @@ for turn in range(scenario.max_turns):
 
 ---
 
-## Phase 6: Evaluation System
+## Phase 6: Evaluation System ✅ COMPLETE (Updated with Compliance Metric)
 
 ### Goal
-Score conversations automatically.
+Score conversations automatically using assignment-required metrics.
+
+### Progress
+- ✅ services/evaluation.py created with LLM-as-judge pattern
+- ✅ Auto-evaluation after each simulation
+- ✅ Scores stored in database
+- ✅ **Updated metrics to match assignment requirements (Dec 2024)**
+
+### Evaluation Metrics (Assignment-Aligned)
+
+**Earlier metrics:**
+- task_completion, naturalness, goal_achieved
+
+**Current metrics (per Riverline assignment):**
+1. **goal_completion**: Did the borrower agree to pay?
+   - 10: Full payment agreement
+   - 7-9: Partial agreement, payment plan
+   - 4-6: Some progress, no commitment
+   - 1-3: Refusal or failed conversation
+
+2. **conversational_quality**: Repetitions, hallucinations, tone match
+   - 10: Natural, professional, no issues
+   - 7-9: Minor awkwardness
+   - 4-6: Noticeable problems
+   - 1-3: Robotic, repetitive, clearly AI
+
+3. **compliance**: Avoid threats, illegal phrasing, harassment
+   - 10: Fully professional even under pressure
+   - 7-9: Minor tone issues, no violations
+   - 4-6: Borderline aggressive/misleading
+   - 1-3: Clear threats, false claims, harassment
+
+**Why compliance matters:**
+Debt collection is regulated (Fair Debt Collection Practices Act in US). Agents cannot:
+- Threaten violence or harm
+- Use profane/abusive language
+- Falsely claim legal action ("you'll be arrested")
+- Harass or intimidate
+- Misrepresent debt amounts
+
+**Implementation in `services/evaluation.py`:**
+```python
+def evaluate_conversation(transcript, goal):
+    # ... LLM prompt includes all 3 metrics with scoring criteria
+    # Returns: {"goal_completion": X, "conversational_quality": X, "compliance": X, "feedback": "..."}
+```
 
 ### Tasks
 
-1. Create services/evaluation.py:
-   - Function: evaluate_conversation(transcript, criteria) -> scores
-   - Use LLM-as-judge pattern:
-     ```python
-     import re
-     import json
-
-     def evaluate_conversation(transcript, goal):
-         prompt = f"""Evaluate this conversation:
-         {json.dumps(transcript)}
-
-         Goal: {goal}
-
-         Score 1-10 for:
-         - task_completion: Did they achieve the goal?
-         - naturalness: Does it sound natural?
-         - goal_achieved: How well was the goal met?
-
-         Return ONLY valid JSON in this exact format:
-         {{"task_completion": X, "naturalness": X, "goal_achieved": X, "feedback": "..."}}"""
-
-         response = get_llm_response(prompt)
-
-         # Extract JSON from response (handles markdown wrapping)
-         json_match = re.search(r'\{.*\}', response, re.DOTALL)
-         if json_match:
-             scores = json.loads(json_match.group())
-         else:
-             # Fallback if parsing fails
-             scores = {"task_completion": 5, "naturalness": 5, "goal_achieved": 5, "feedback": "Parse error"}
-
-         return scores
-     ```
-2. Add Evaluation model
-3. Create routers/evaluate.py:
-   - POST /evaluate/{run_id} - evaluate a run
-   - GET /evaluations/{run_id} - get evaluation
-4. Auto-run evaluation after simulation completes
-5. Frontend: show scores on simulation detail page
+1. ✅ Create services/evaluation.py with LLM-as-judge pattern
+2. ✅ Add Evaluation model
+3. ⚠️ routers/evaluate.py not created (evaluations auto-run in simulations.py instead)
+4. ✅ Auto-run evaluation after simulation completes
+5. ✅ Frontend shows scores on simulation detail page
 
 ### Output
-Automated scoring with feedback.
+Automated scoring with feedback using assignment-aligned metrics.
 
 ---
 
@@ -1051,7 +1062,7 @@ npm run dev
 3. ✅ Phase 3: Build frontend - COMPLETE
 4. ✅ Phase 4: Add voice - COMPLETE
 5. ✅ Phase 5: Store simulation logs - COMPLETE
-6. ✅ Phase 6: Add evaluation - COMPLETE
+6. ✅ Phase 6: Add evaluation - COMPLETE (Updated: Compliance metric added)
 7. ✅ Phase 7: Add vector search - COMPLETE
 8. ✅ Phase 8: DGM evolution loop - COMPLETE
    - ✅ Backend multi-scenario evolution API (mutation.py, evolve.py)
@@ -1065,3 +1076,73 @@ npm run dev
 Start with Phase 1. Keep each phase working before moving to next.
 ```
 
+
+
+---
+
+## Upcoming Work / TODO
+
+### Phase 9: LiveKit Voice Integration (PENDING)
+
+**Assignment Requirement:** "Building voice agent with LiveKit"
+
+**Current State:** Using Deepgram TTS for audio generation only (playback, not real-time conversation)
+
+**Goal:** Add LiveKit for real-time voice conversation with the evolved agent
+
+**Planned Implementation:**
+
+1. **Keep Deepgram for TTS** - Already working for audio playback
+2. **Add LiveKit for real-time voice** - New capability for live conversation
+
+**Architecture:**
+```
+Current:  Text Simulation → Deepgram TTS → Audio Files → Playback
+New:      LiveKit Voice Agent → Real-time conversation with user
+```
+
+**Files to create:**
+- `backend/services/livekit_agent.py` - LiveKit agent setup
+- `backend/routers/voice.py` - Voice session endpoints
+- `frontend/src/pages/VoiceChat.jsx` - Real-time voice UI
+
+**Why this approach:**
+- Assignment says "It should be fine if the voice agent works locally"
+- LiveKit can run locally with their CLI
+- Deepgram remains for TTS (already integrated)
+- LiveKit handles WebRTC, VAD, turn-taking
+
+**Status:** PENDING - Will implement after core evolution system is validated
+
+---
+
+### Submission Checklist Status
+
+- [x] GitHub repo with detailed README
+- [x] Self-modifying voice agent (DGM evolution loop)
+- [x] Version archive with evaluation scores and prompt changes
+- [ ] Audio recording of talking with voice agent (requires LiveKit)
+- [ ] 2-3 minute demo video
+
+---
+
+## Recent Changes Log
+
+### Dec 2024 - Compliance Metric Update
+
+**Problem:** Original metrics (`task_completion`, `naturalness`, `goal_achieved`) didn't match assignment requirements.
+
+**Assignment requires:**
+- Goal completion (did borrower agree to pay?)
+- Conversational quality (repetitions, hallucinations, tone)
+- **Compliance (avoid threats, illegal phrasing)**
+
+**Changes made:**
+1. Updated `services/evaluation.py` - New 3 metrics with detailed scoring criteria
+2. Updated `services/mutation.py` - Uses new metric names for evolution
+3. Updated `routers/simulations.py` - Calculates overall score from new metrics
+4. Updated `routers/evolve.py` - Backwards-compatible with old metric names
+5. Updated `guide.md` - Documented changes
+
+**Backwards compatibility:**
+Code handles both old (`task_completion`) and new (`goal_completion`) metric names to avoid breaking existing data.

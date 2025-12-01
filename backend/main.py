@@ -7,7 +7,7 @@ from services.llm import get_llm_response
 from services.tts import text_to_speech
 from database import engine
 import models
-from routers import personas, scenarios, simulations, search, evolve
+from routers import personas, scenarios, simulations, search, evolve, voice
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
@@ -43,6 +43,7 @@ app.include_router(scenarios.router)
 app.include_router(simulations.router)
 app.include_router(search.router)
 app.include_router(evolve.router)
+app.include_router(voice.router)
 
 
 @app.get("/")

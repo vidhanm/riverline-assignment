@@ -10,3 +10,6 @@ chromadb
 httpx
 python-multipart
 deepgram-sdk
+openai
+livekit
+livekit-agents[deepgram,openai,silero,sarvam]

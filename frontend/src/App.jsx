@@ -4,6 +4,7 @@ import Personas from './pages/Personas';
 import Scenarios from './pages/Scenarios';
 import Simulations from './pages/Simulations';
 import Evolution from './pages/Evolution';
+import VoiceChat from './pages/VoiceChat';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
                 <Link to="/scenarios" className="hover:text-blue-500">Scenarios</Link>
                 <Link to="/simulations" className="hover:text-blue-500">Simulations</Link>
                 <Link to="/evolution" className="hover:text-blue-500">Evolution</Link>
+                <Link to="/voice" className="hover:text-blue-500 font-semibold text-green-600">🎙️ Voice</Link>
               </div>
             </div>
           </div>
@@ -31,6 +33,7 @@ function App() {
             <Route path="/scenarios" element={<Scenarios />} />
             <Route path="/simulations" element={<Simulations />} />
             <Route path="/evolution" element={<Evolution />} />
+            <Route path="/voice" element={<VoiceChat />} />
           </Routes>
         </main>
       </div>

@@ -8,6 +8,20 @@ export default function Home() {
         Simulate conversations between AI personas with voice generation and evolution capabilities
       </p>
 
+      {/* Voice Chat Hero Card */}
+      <Link
+        to="/voice"
+        className="block p-8 mb-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-lg hover:shadow-xl transition text-white"
+      >
+        <div className="flex items-center gap-4">
+          <span className="text-5xl">🎙️</span>
+          <div>
+            <h2 className="text-3xl font-bold mb-2">Voice Chat</h2>
+            <p className="text-green-100">Talk to the evolved debt collection agent in real-time</p>
+          </div>
+        </div>
+      </Link>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Link
           to="/personas"

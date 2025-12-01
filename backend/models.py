@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, JSON, DateTime
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, JSON, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -78,6 +78,7 @@ class AgentVersion(Base):
     fitness_score = Column(Float)
     parent_version_id = Column(Integer, ForeignKey("agent_versions.id"), nullable=True)
     baseline_score = Column(Float)  # Store baseline score for comparison
+    is_active = Column(Boolean, default=False)  # Whether this version is currently active
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships

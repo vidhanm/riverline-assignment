@@ -123,8 +123,8 @@ Act like a real conversation, not a script."""
         print(f"\n=== Evaluating Simulation ===")
         scores = evaluate_conversation(transcript, scenario.goal or "Complete conversation")
 
-        # Calculate overall score (average)
-        overall = (scores["task_completion"] + scores["naturalness"] + scores["goal_achieved"]) / 3
+        # Calculate overall score (average of 3 metrics per assignment requirements)
+        overall = (scores["goal_completion"] + scores["conversational_quality"] + scores["compliance"]) / 3
 
         # Create evaluation record
         evaluation = models.Evaluation(
@@ -147,9 +147,9 @@ Act like a real conversation, not a script."""
                 "persona_b": persona_b.name,
                 "scenario": scenario.name,
                 "overall_score": overall,
-                "task_completion": scores["task_completion"],
-                "naturalness": scores["naturalness"],
-                "goal_achieved": scores["goal_achieved"]
+                "goal_completion": scores["goal_completion"],
+                "conversational_quality": scores["conversational_quality"],
+                "compliance": scores["compliance"]
             }
         )
 
