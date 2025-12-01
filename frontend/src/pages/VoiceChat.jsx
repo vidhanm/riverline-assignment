@@ -8,7 +8,9 @@ import {
   useVoiceAssistant,
   RoomAudioRenderer,
   useTranscriptions,
+  useTrackToggle,
 } from '@livekit/components-react';
+import { Track } from 'livekit-client';
 import '@livekit/components-styles';
 
 function VoiceChat() {
@@ -246,8 +248,13 @@ LIVEKIT_API_SECRET=your-api-secret`}
 function VoiceChatInterface({ persona, onEnd }) {
   const { state } = useVoiceAssistant();
   const transcriptions = useTranscriptions();
-  const [isMicOn, setIsMicOn] = useState(false);
   const messagesEndRef = useRef(null);
+
+  // Real microphone control via LiveKit - starts MUTED
+  const { toggle: toggleMic, enabled: isMicOn, pending: isMicPending } = useTrackToggle({
+    source: Track.Source.Microphone,
+    initialState: false, // Start with mic OFF - user must click to speak
+  });
 
   // DEBUG: Remove after testing
   // useEffect(() => {
@@ -277,8 +284,6 @@ function VoiceChatInterface({ persona, onEnd }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const toggleMic = () => setIsMicOn(!isMicOn);
-
   return (
     <div className="h-screen bg-slate-900 flex">
       {/* Left Panel - Controls */}
@@ -300,21 +305,23 @@ function VoiceChatInterface({ persona, onEnd }) {
           <p className="text-slate-500 text-sm">Debt Collection Agent</p>
         </div>
 
-        {/* Hero Mic Button */}
+        {/* Hero Mic Button - Controls REAL microphone */}
         <button
-          onClick={toggleMic}
+          onClick={() => toggleMic()}
+          disabled={isMicPending}
           className={`
             relative w-40 h-40 rounded-full flex flex-col items-center justify-center
             transition-all duration-300 transform cursor-pointer
+            ${isMicPending ? 'opacity-50 cursor-wait' : ''}
             ${isMicOn 
-              ? 'bg-gradient-to-br from-green-400 to-green-600 scale-105 shadow-2xl shadow-green-500/40' 
+              ? 'bg-gradient-to-br from-red-500 to-red-600 scale-105 shadow-2xl shadow-red-500/40' 
               : 'bg-slate-800 hover:bg-slate-700 border-2 border-slate-600 hover:border-slate-500'
             }
           `}
         >
-          {/* Pulse animation when active */}
+          {/* Pulse animation when active - RED for recording */}
           {isMicOn && (
-            <div className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-20" />
+            <div className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-20" />
           )}
           
           {/* Icon */}
@@ -323,15 +330,15 @@ function VoiceChatInterface({ persona, onEnd }) {
           </span>
           
           {/* Label inside button */}
-          <span className={`text-xs font-medium relative z-10 ${isMicOn ? 'text-green-100' : 'text-slate-400'}`}>
-            {isMicOn ? 'Tap to stop' : 'Tap to speak'}
+          <span className={`text-xs font-medium relative z-10 ${isMicOn ? 'text-white' : 'text-slate-400'}`}>
+            {isMicPending ? 'Starting...' : (isMicOn ? 'Tap to mute' : 'Tap to speak')}
           </span>
         </button>
 
         {/* Status - Single Line */}
         <div className="mt-8 text-center">
-          <p className={`text-lg font-medium ${isMicOn ? 'text-green-400' : 'text-slate-400'}`}>
-            {isMicOn ? '● Recording...' : 'Ready to listen'}
+          <p className={`text-lg font-medium ${isMicOn ? 'text-red-400' : 'text-slate-400'}`}>
+            {isMicOn ? '🔴 LIVE - Listening...' : '🎙️ Mic muted'}
           </p>
         </div>
 
