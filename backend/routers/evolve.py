@@ -13,6 +13,60 @@ N_BASELINE_SIMS = 5  # Test simulations for baseline
 FAILURE_THRESHOLD = 8.5  # Trigger evolution if below this
 N_MUTATIONS = 3  # Number of mutation variants
 N_MUTATION_TESTS = 5  # Test simulations per mutation (same as baseline for fair comparison)
+PLATEAU_WINDOW = 3  # Number of evolution cycles to check for plateau
+PLATEAU_THRESHOLD = 0.2  # Minimum improvement required to not be considered plateau
+
+
+def check_plateau(persona_id: int, db: Session) -> dict:
+    """
+    Check if evolution has plateaued by analyzing recent version history.
+    Returns: {"is_plateau": bool, "reason": str, "recent_scores": list}
+    """
+    # Get last N versions ordered by creation
+    recent_versions = db.query(models.AgentVersion).filter(
+        models.AgentVersion.persona_id == persona_id
+    ).order_by(models.AgentVersion.version.desc()).limit(PLATEAU_WINDOW).all()
+    
+    if len(recent_versions) < PLATEAU_WINDOW:
+        return {
+            "is_plateau": False,
+            "reason": f"Not enough history ({len(recent_versions)}/{PLATEAU_WINDOW} versions)",
+            "recent_scores": [v.fitness_score for v in recent_versions]
+        }
+    
+    scores = [v.fitness_score for v in recent_versions]
+    
+    # Check if all scores are above threshold (converged to good performance)
+    if all(s >= FAILURE_THRESHOLD for s in scores):
+        return {
+            "is_plateau": True,
+            "reason": f"Converged: All recent scores above threshold ({FAILURE_THRESHOLD})",
+            "recent_scores": scores
+        }
+    
+    # Check if improvement between consecutive versions is minimal
+    improvements = []
+    for i in range(len(scores) - 1):
+        # scores[0] is newest, scores[-1] is oldest
+        improvement = scores[i] - scores[i + 1]  # Newer - Older
+        improvements.append(improvement)
+    
+    avg_improvement = sum(improvements) / len(improvements) if improvements else 0
+    
+    if abs(avg_improvement) < PLATEAU_THRESHOLD:
+        return {
+            "is_plateau": True,
+            "reason": f"Plateau detected: Avg improvement {avg_improvement:.2f} below threshold {PLATEAU_THRESHOLD}",
+            "recent_scores": scores,
+            "avg_improvement": avg_improvement
+        }
+    
+    return {
+        "is_plateau": False,
+        "reason": "Evolution still improving",
+        "recent_scores": scores,
+        "avg_improvement": avg_improvement
+    }
 
 
 @router.post("/{persona_id}")
@@ -21,12 +75,13 @@ def evolve_persona(persona_id: int, scenario_ids: str, db: Session = Depends(get
     Run evolution cycle for a persona against MULTIPLE scenarios
 
     Process:
-    1. Run N baseline simulations (distributed across scenarios)
-    2. Check if evolution needed (avg score < threshold)
-    3. Generate N mutations
-    4. Test each mutation (distributed across scenarios)
-    5. Pick best mutation
-    6. Save as new version
+    1. Check for plateau (stop if evolution has stagnated)
+    2. Run N baseline simulations (distributed across scenarios)
+    3. Check if evolution needed (avg score < threshold)
+    4. Generate N mutations
+    5. Test each mutation (distributed across scenarios)
+    6. Pick best mutation
+    7. Save as new version
 
     Args:
         persona_id: ID of persona to evolve
@@ -57,6 +112,17 @@ def evolve_persona(persona_id: int, scenario_ids: str, db: Session = Depends(get
         print(f"  - {s.name}")
     print(f"{'='*60}\n")
 
+    # Step 0: Check for plateau (NEW)
+    plateau_check = check_plateau(persona_id, db)
+    if plateau_check["is_plateau"]:
+        print(f"  PLATEAU DETECTED: {plateau_check['reason']}")
+        print(f"  Recent scores: {plateau_check['recent_scores']}")
+        return {
+            "evolved": False,
+            "reason": "Plateau detected - evolution terminated",
+            "plateau_info": plateau_check
+        }
+
     # Step 1: Run baseline simulations (distributed across scenarios)
     print(f"Step 1: Running {N_BASELINE_SIMS} baseline simulations...")
     baseline_scores = []
@@ -79,7 +145,9 @@ def evolve_persona(persona_id: int, scenario_ids: str, db: Session = Depends(get
                 'goal_completion': evaluation.scores.get('goal_completion', evaluation.scores.get('task_completion', 5)),
                 'conversational_quality': evaluation.scores.get('conversational_quality', evaluation.scores.get('naturalness', 5)),
                 'compliance': evaluation.scores.get('compliance', 5),
-                'feedback': evaluation.feedback
+                'adaptation_quality': evaluation.scores.get('adaptation_quality', 5),  # NEW
+                'feedback': evaluation.feedback,
+                'structured_issues': evaluation.scores.get('structured_issues', {})  # NEW
             })
 
     avg_baseline = sum(baseline_scores) / len(baseline_scores) if baseline_scores else 0
@@ -281,4 +349,26 @@ def activate_version(version_id: int, db: Session = Depends(get_db)):
         "persona_id": persona.id,
         "activated_version": version.version,
         "fitness_score": version.fitness_score
+    }
+
+
+@router.get("/plateau/{persona_id}")
+def get_plateau_status(persona_id: int, db: Session = Depends(get_db)):
+    """
+    Check if evolution has plateaued for a persona.
+    Returns plateau status and recent performance history.
+    """
+    persona = db.query(models.Persona).filter(models.Persona.id == persona_id).first()
+    if not persona:
+        raise HTTPException(status_code=404, detail="Persona not found")
+    
+    plateau_info = check_plateau(persona_id, db)
+    
+    return {
+        "persona_id": persona_id,
+        "persona_name": persona.name,
+        "plateau_window": PLATEAU_WINDOW,
+        "plateau_threshold": PLATEAU_THRESHOLD,
+        "failure_threshold": FAILURE_THRESHOLD,
+        **plateau_info
     }

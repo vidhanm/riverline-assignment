@@ -123,8 +123,14 @@ Act like a real conversation, not a script."""
         print(f"\n=== Evaluating Simulation ===")
         scores = evaluate_conversation(transcript, scenario.goal or "Complete conversation")
 
-        # Calculate overall score (average of 3 metrics per assignment requirements)
-        overall = (scores["goal_completion"] + scores["conversational_quality"] + scores["compliance"]) / 3
+        # Calculate overall score (average of 4 metrics - now includes adaptation_quality)
+        num_metrics = 4  # goal_completion, conversational_quality, compliance, adaptation_quality
+        overall = (
+            scores.get("goal_completion", 5) + 
+            scores.get("conversational_quality", 5) + 
+            scores.get("compliance", 5) + 
+            scores.get("adaptation_quality", 5)
+        ) / num_metrics
 
         # Create evaluation record
         evaluation = models.Evaluation(
@@ -135,7 +141,7 @@ Act like a real conversation, not a script."""
         )
         db.add(evaluation)
         db.commit()
-        print(f"Evaluation complete - Overall: {overall:.1f}/10")
+        print(f"Evaluation complete - Overall: {overall:.1f}/10 (adaptation: {scores.get('adaptation_quality', 'N/A')}/10)")
 
         # Add to vector store for future search
         print(f"Adding conversation to vector store...")
